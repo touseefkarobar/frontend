@@ -200,6 +200,22 @@ function App() {
     }
     return "";
   });
+  const [baseSalary, setBaseSalary] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem(SALARY_PREFERENCES_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed?.baseSalary) {
+            return String(parsed.baseSalary);
+          }
+        } catch {
+          window.localStorage.removeItem(SALARY_PREFERENCES_KEY);
+        }
+      }
+    }
+    return "";
+  });
   const [salaryCurrency, setSalaryCurrency] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = window.localStorage.getItem(SALARY_PREFERENCES_KEY);
@@ -215,6 +231,88 @@ function App() {
       }
     }
     return DEFAULT_CURRENCY;
+  });
+  const [enableSalary, setEnableSalary] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem(SALARY_PREFERENCES_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (typeof parsed?.enableSalary === "boolean") {
+            return parsed.enableSalary;
+          }
+        } catch {
+          window.localStorage.removeItem(SALARY_PREFERENCES_KEY);
+        }
+      }
+    }
+    return true;
+  });
+  const [enableAttendanceBonus, setEnableAttendanceBonus] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem(SALARY_PREFERENCES_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (typeof parsed?.enableAttendanceBonus === "boolean") {
+            return parsed.enableAttendanceBonus;
+          }
+        } catch {
+          window.localStorage.removeItem(SALARY_PREFERENCES_KEY);
+        }
+      }
+    }
+    return true;
+  });
+  const [enableTimeManagementBonus, setEnableTimeManagementBonus] = useState(
+    () => {
+      if (typeof window !== "undefined") {
+        const stored = window.localStorage.getItem(SALARY_PREFERENCES_KEY);
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored);
+            if (typeof parsed?.enableTimeManagementBonus === "boolean") {
+              return parsed.enableTimeManagementBonus;
+            }
+          } catch {
+            window.localStorage.removeItem(SALARY_PREFERENCES_KEY);
+          }
+        }
+      }
+      return true;
+    }
+  );
+  const [enableClientBonus, setEnableClientBonus] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem(SALARY_PREFERENCES_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (typeof parsed?.enableClientBonus === "boolean") {
+            return parsed.enableClientBonus;
+          }
+        } catch {
+          window.localStorage.removeItem(SALARY_PREFERENCES_KEY);
+        }
+      }
+    }
+    return true;
+  });
+  const [enablePerformanceBonus, setEnablePerformanceBonus] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem(SALARY_PREFERENCES_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (typeof parsed?.enablePerformanceBonus === "boolean") {
+            return parsed.enablePerformanceBonus;
+          }
+        } catch {
+          window.localStorage.removeItem(SALARY_PREFERENCES_KEY);
+        }
+      }
+    }
+    return true;
   });
   const [showSalary, setShowSalary] = useState(false);
   const [auth, setAuth] = useState(() => {
@@ -283,25 +381,163 @@ function App() {
       SALARY_PREFERENCES_KEY,
       JSON.stringify({
         hourlyRate: hourlyRate || "",
+        baseSalary: baseSalary || "",
         currency: normalized,
+        enableSalary,
+        enableAttendanceBonus,
+        enableTimeManagementBonus,
+        enableClientBonus,
+        enablePerformanceBonus,
       })
     );
-  }, [hourlyRate, salaryCurrency]);
+  }, [
+    hourlyRate,
+    baseSalary,
+    salaryCurrency,
+    enableSalary,
+    enableAttendanceBonus,
+    enableTimeManagementBonus,
+    enableClientBonus,
+    enablePerformanceBonus,
+  ]);
 
   const parsedLoggedHours = parseFloat(loggedHours) || 0;
   const normalizedCurrency =
     (salaryCurrency || "").trim().slice(0, 3).toUpperCase() || DEFAULT_CURRENCY;
   const parsedHourlyRate = parseFloat(hourlyRate) || 0;
-  const calculatedSalary = parsedLoggedHours * parsedHourlyRate;
+  const parsedBaseSalary = parseFloat(baseSalary) || 0;
+  const targetHours = Number.isFinite(totalTargetHours)
+    ? totalTargetHours
+    : 0;
+  const expectedMonthlyBase =
+    parsedBaseSalary > 0
+      ? parsedBaseSalary
+      : targetHours > 0 && parsedHourlyRate > 0
+      ? parsedHourlyRate * targetHours
+      : 0;
+  const effectiveHourlyRate =
+    parsedBaseSalary > 0 && targetHours > 0
+      ? parsedBaseSalary / targetHours
+      : parsedHourlyRate;
+  const cappedHours =
+    targetHours > 0 ? Math.min(parsedLoggedHours, targetHours) : parsedLoggedHours;
+  const meetsMonthlyTarget =
+    enableSalary && targetHours > 0
+      ? Math.abs(parsedLoggedHours - targetHours) < 0.01
+      : false;
+  const basePay = (() => {
+    if (!enableSalary) return 0;
+    if (targetHours <= 0) {
+      if (parsedBaseSalary > 0) return parsedBaseSalary;
+      return effectiveHourlyRate > 0
+        ? effectiveHourlyRate * parsedLoggedHours
+        : 0;
+    }
+
+    if (meetsMonthlyTarget) {
+      if (expectedMonthlyBase > 0) return expectedMonthlyBase;
+      return effectiveHourlyRate > 0
+        ? effectiveHourlyRate * parsedLoggedHours
+        : 0;
+    }
+
+    if (effectiveHourlyRate > 0) {
+      const computed = effectiveHourlyRate * cappedHours;
+      if (expectedMonthlyBase > 0) {
+        return Math.min(expectedMonthlyBase, computed);
+      }
+      return computed;
+    }
+
+    return 0;
+  })();
+  const attendanceBonusActive =
+    enableSalary &&
+    enableAttendanceBonus &&
+    meetsMonthlyTarget &&
+    expectedMonthlyBase > 0;
+  const timeManagementBonusActive =
+    enableSalary &&
+    enableTimeManagementBonus &&
+    meetsMonthlyTarget &&
+    expectedMonthlyBase > 0;
+  const clientBonusActive =
+    enableSalary &&
+    enableClientBonus &&
+    meetsMonthlyTarget &&
+    expectedMonthlyBase > 0;
+  const performanceBonusActive =
+    enableSalary &&
+    enablePerformanceBonus &&
+    attendanceBonusActive &&
+    timeManagementBonusActive &&
+    clientBonusActive;
+  const attendanceBonusAmount = attendanceBonusActive
+    ? expectedMonthlyBase * 0.05
+    : 0;
+  const timeManagementBonusAmount = timeManagementBonusActive
+    ? expectedMonthlyBase * 0.05
+    : 0;
+  const clientBonusAmount = clientBonusActive
+    ? expectedMonthlyBase * 0.03
+    : 0;
+  const performanceBonusAmount = performanceBonusActive
+    ? expectedMonthlyBase * 0.03
+    : 0;
+  const bonusSubtotal =
+    attendanceBonusAmount +
+    timeManagementBonusAmount +
+    clientBonusAmount +
+    performanceBonusAmount;
+  const totalCompensation = enableSalary ? basePay + bonusSubtotal : 0;
   const formattedSalary = formatCurrencyValue(
-    calculatedSalary,
+    totalCompensation,
     normalizedCurrency
   );
-  const formattedHourlyRate = parsedHourlyRate
-    ? formatCurrencyValue(parsedHourlyRate, normalizedCurrency)
+  const formattedHourlyRate = effectiveHourlyRate
+    ? formatCurrencyValue(effectiveHourlyRate, normalizedCurrency)
     : null;
-  const hourDelta = 2.5;
-  // const hourDelta = parsedLoggedHours - expectedHoursByToday;
+  const formattedBaseSalary = expectedMonthlyBase
+    ? formatCurrencyValue(expectedMonthlyBase, normalizedCurrency)
+    : null;
+  const formattedAttendanceBonus = attendanceBonusAmount
+    ? formatCurrencyValue(attendanceBonusAmount, normalizedCurrency)
+    : null;
+  const formattedTimeManagementBonus = timeManagementBonusAmount
+    ? formatCurrencyValue(timeManagementBonusAmount, normalizedCurrency)
+    : null;
+  const formattedClientBonus = clientBonusAmount
+    ? formatCurrencyValue(clientBonusAmount, normalizedCurrency)
+    : null;
+  const formattedPerformanceBonus = performanceBonusAmount
+    ? formatCurrencyValue(performanceBonusAmount, normalizedCurrency)
+    : null;
+  const formattedBonusSubtotal = bonusSubtotal
+    ? formatCurrencyValue(bonusSubtotal, normalizedCurrency)
+    : null;
+  const formattedAttendanceBonusFull = formatCurrencyValue(
+    attendanceBonusAmount,
+    normalizedCurrency
+  );
+  const formattedTimeManagementBonusFull = formatCurrencyValue(
+    timeManagementBonusAmount,
+    normalizedCurrency
+  );
+  const formattedClientBonusFull = formatCurrencyValue(
+    clientBonusAmount,
+    normalizedCurrency
+  );
+  const formattedPerformanceBonusFull = formatCurrencyValue(
+    performanceBonusAmount,
+    normalizedCurrency
+  );
+  const formattedBasePay = formatCurrencyValue(basePay, normalizedCurrency);
+  const formattedBonusSubtotalFull = formatCurrencyValue(
+    bonusSubtotal,
+    normalizedCurrency
+  );
+  const hourDelta = parsedLoggedHours - expectedHoursByToday;
+  const basePayLabel = meetsMonthlyTarget ? "Base salary" : "Prorated base";
   const hoursStatusLabel =
     hourDelta >= 0 ? "Advanced hours" : "Remaining hours";
   const hoursStatusValue = Math.abs(hourDelta);
@@ -536,13 +772,13 @@ function App() {
           <div className="relative z-10 flex flex-col gap-10">
             <div className="rounded-3xl border border-white/15 bg-white/15 p-6 backdrop-blur-xl sm:p-8">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex items-center justify-start gap-4">
-                  <p className="text-4xl font-semibold sm:text-5xl">
-                    {showSalary ? formattedSalary : "••••••"}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setShowSalary((prev) => !prev)}
+              <div className="flex items-center justify-start gap-4">
+                <p className="text-4xl font-semibold sm:text-5xl">
+                  {showSalary ? formattedSalary : "••••••"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowSalary((prev) => !prev)}
                     
                   >
                     {showSalary ? (
@@ -598,13 +834,83 @@ function App() {
                         />
                       </svg>
                     )}
-                  </button>
-                </div>
-                <div className="flex flex-col items-start gap-3 sm:items-end">
-                  <span className="text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
-                    Last sync · {lastSyncLabel}
-                  </span>
-                </div>
+                </button>
+              </div>
+              {showSalary && enableSalary ? (
+                <dl className="mt-4 grid w-full gap-2 text-xs text-white/80 sm:text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <dt className="uppercase tracking-[0.25em] text-white/70">
+                      {basePayLabel}
+                    </dt>
+                    <dd className="font-semibold text-white">
+                      {formattedBasePay}
+                    </dd>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <dt className="uppercase tracking-[0.25em] text-white/70">
+                      Bonus subtotal
+                    </dt>
+                    <dd className="font-semibold text-white">
+                      {formattedBonusSubtotalFull}
+                    </dd>
+                  </div>
+                  <div className="grid gap-1 text-white/70 sm:grid-cols-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Attendance 5%</span>
+                      <span
+                        className={
+                          attendanceBonusActive
+                            ? "font-medium text-emerald-100"
+                            : "font-medium text-white/40"
+                        }
+                      >
+                        {formattedAttendanceBonusFull}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Time management 5%</span>
+                      <span
+                        className={
+                          timeManagementBonusActive
+                            ? "font-medium text-emerald-100"
+                            : "font-medium text-white/40"
+                        }
+                      >
+                        {formattedTimeManagementBonusFull}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Client 3%</span>
+                      <span
+                        className={
+                          clientBonusActive
+                            ? "font-medium text-emerald-100"
+                            : "font-medium text-white/40"
+                        }
+                      >
+                        {formattedClientBonusFull}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Performance 3%</span>
+                      <span
+                        className={
+                          performanceBonusActive
+                            ? "font-medium text-emerald-100"
+                            : "font-medium text-white/40"
+                        }
+                      >
+                        {formattedPerformanceBonusFull}
+                      </span>
+                    </div>
+                  </div>
+                </dl>
+              ) : null}
+              <div className="flex flex-col items-start gap-3 sm:items-end">
+                <span className="text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
+                  Last sync · {lastSyncLabel}
+                </span>
+              </div>
               </div>
             </div>
           </div>
@@ -777,10 +1083,23 @@ function App() {
                     Configure your hourly rate and currency to unlock salary
                     projections on the home view.
                   </p>
-                  <div className="mt-5 grid gap-4 sm:grid-cols-[2fr,1fr]">
+                  <div className="mt-5 grid gap-4 sm:grid-cols-[1.4fr,1.4fr,1fr]">
                     <label className="flex flex-col gap-2">
                       <span className="text-sm font-medium text-slate-300">
-                        Hourly rate
+                        Monthly base salary
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={baseSalary}
+                        onChange={(event) => setBaseSalary(event.target.value)}
+                        className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-base text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-2">
+                      <span className="text-sm font-medium text-slate-300">
+                        Hourly rate (optional)
                       </span>
                       <input
                         type="number"
@@ -808,9 +1127,82 @@ function App() {
                     </label>
                   </div>
                   <p className="mt-4 text-xs text-slate-400">
-                    {parsedHourlyRate > 0
-                      ? `Estimated earnings this month: ${formattedSalary}.`
-                      : "Add your hourly rate to enable salary calculations."}
+                    {expectedMonthlyBase > 0
+                      ? `Monthly base target: ${formattedBaseSalary}.`
+                      : "Set a monthly base salary or hourly rate to establish your target compensation."}
+                  </p>
+                  <fieldset className="mt-6 space-y-3">
+                    <legend className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">
+                      Compensation controls
+                    </legend>
+                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 transition hover:border-indigo-400/40">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-white/30 bg-slate-900 text-indigo-500 focus:ring-indigo-400"
+                        checked={enableSalary}
+                        onChange={(event) => setEnableSalary(event.target.checked)}
+                      />
+                      <span className="flex-1">Enable salary calculations</span>
+                    </label>
+                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 transition hover:border-indigo-400/40">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-white/30 bg-slate-900 text-indigo-500 focus:ring-indigo-400"
+                        checked={enableAttendanceBonus}
+                        disabled={!enableSalary}
+                        onChange={(event) =>
+                          setEnableAttendanceBonus(event.target.checked)
+                        }
+                      />
+                      <span className="flex-1">Enable attendance bonus (5%)</span>
+                    </label>
+                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 transition hover:border-indigo-400/40">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-white/30 bg-slate-900 text-indigo-500 focus:ring-indigo-400"
+                        checked={enableTimeManagementBonus}
+                        disabled={!enableSalary}
+                        onChange={(event) =>
+                          setEnableTimeManagementBonus(event.target.checked)
+                        }
+                      />
+                      <span className="flex-1">Enable time management bonus (5%)</span>
+                    </label>
+                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 transition hover:border-indigo-400/40">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-white/30 bg-slate-900 text-indigo-500 focus:ring-indigo-400"
+                        checked={enableClientBonus}
+                        disabled={!enableSalary}
+                        onChange={(event) =>
+                          setEnableClientBonus(event.target.checked)
+                        }
+                      />
+                      <span className="flex-1">Enable client bonus (3%)</span>
+                    </label>
+                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 transition hover:border-indigo-400/40">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-white/30 bg-slate-900 text-indigo-500 focus:ring-indigo-400"
+                        checked={enablePerformanceBonus}
+                        disabled={!enableSalary}
+                        onChange={(event) =>
+                          setEnablePerformanceBonus(event.target.checked)
+                        }
+                      />
+                      <span className="flex-1">
+                        Enable performance bonus (3%)
+                      </span>
+                    </label>
+                    <p className="text-xs text-slate-500">
+                      Bonuses activate automatically when the logged hours match
+                      the monthly target and the relevant toggles are enabled.
+                    </p>
+                  </fieldset>
+                  <p className="mt-4 text-xs text-slate-400">
+                    {enableSalary
+                      ? `Projected compensation this month: ${formattedSalary}.`
+                      : "Enable salary calculations to view compensation estimates."}
                   </p>
                 </div>
 

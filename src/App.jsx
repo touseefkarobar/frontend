@@ -374,6 +374,7 @@ function App() {
   const [teamLoggerLoading, setTeamLoggerLoading] = useState(false);
   const [teamLoggerError, setTeamLoggerError] = useState("");
   const [teamLoggerTotals, setTeamLoggerTotals] = useState(null);
+  const [todayProgressHours, setTodayProgressHours] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState(null);
 
   const {
@@ -626,10 +627,12 @@ function App() {
       : 0,
     0,
   );
-  const todayProgressHours = 8
+  const sanitizedTodayProgressHours = Number.isFinite(todayProgressHours)
+    ? todayProgressHours
+    : 0;
   const todayRequirement = isTodayWorkingDay ? dailyTargetHours : 0;
-  const todayVariance = todayProgressHours - todayRequirement;
-  const formattedTodayProgress = formatNumber(todayProgressHours);
+  const todayVariance = sanitizedTodayProgressHours - todayRequirement;
+  const formattedTodayProgress = formatNumber(sanitizedTodayProgressHours);
   const formattedTodayRequirement = formatNumber(todayRequirement);
   const formattedTodayVariance = formatNumber(Math.abs(todayVariance));
   const workingDaysRemaining = Math.max(
@@ -717,6 +720,7 @@ function App() {
     setTeamLoggerTotals(null);
     setTeamLoggerError("");
     setTeamLoggerLoading(false);
+    setTodayProgressHours(0);
     setLoggedHours("");
     setShowSalary(false);
     setLastSyncedAt(null);
@@ -759,10 +763,51 @@ function App() {
             return prev === next ? prev : next;
           });
         }
+
+        const todayRangeStart = dayjs().startOf("day").valueOf();
+        const todayRangeEnd = dayjs().endOf("day").valueOf();
+
+        try {
+          const todayResult = await fetchTeamLoggerTotalTime({
+            token,
+            tokenType,
+            companyId,
+            accountId,
+            startTime: todayRangeStart,
+            endTime: todayRangeEnd,
+            dayStartCutOff: TEAMLOGGER_DEFAULT_FILTERS.dayStartCutOff,
+            dayEndCutOff: TEAMLOGGER_DEFAULT_FILTERS.dayEndCutOff,
+            suppressDetails: TEAMLOGGER_DEFAULT_FILTERS.suppressDetails,
+          });
+
+          if (!ignore) {
+            const todayStats = todayResult?.stats ?? {};
+            const candidateHours = [
+              todayStats.onComputerHours,
+              todayStats.totalHours,
+              todayResult?.totalWorkedHours,
+            ];
+            const derivedTodayHours =
+              candidateHours.find(
+                (value) => Number.isFinite(value) && value >= 0,
+              ) ?? 0;
+            setTodayProgressHours(derivedTodayHours);
+          }
+        } catch (error) {
+          if (!ignore) {
+            setTodayProgressHours(0);
+            setTeamLoggerError((prev) =>
+              prev
+                ? prev
+                : `Failed to fetch today's progress: ${error.message}`,
+            );
+          }
+        }
       } catch (error) {
         if (ignore) return;
         setTeamLoggerTotals(null);
         setTeamLoggerError(error.message);
+        setTodayProgressHours(0);
       } finally {
         if (!ignore) {
           setTeamLoggerLoading(false);

@@ -184,22 +184,8 @@ function App() {
   const [holidays, setHolidays] = useState([]);
   const [activeSection, setActiveSection] = useState("overview");
   const [loggedHours, setLoggedHours] = useState("");
-  const [hourlyRate, setHourlyRate] = useState(() => {
-    if (typeof window !== "undefined") {
-      const stored = window.localStorage.getItem(SALARY_PREFERENCES_KEY);
-      if (stored) {
-        try {
-          const parsed = JSON.parse(stored);
-          if (parsed?.hourlyRate) {
-            return String(parsed.hourlyRate);
-          }
-        } catch {
-          window.localStorage.removeItem(SALARY_PREFERENCES_KEY);
-        }
-      }
-    }
-    return "";
-  });
+  const [hourlyRate, setHourlyRate] = useState(0);
+
   const [baseSalary, setBaseSalary] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = window.localStorage.getItem(SALARY_PREFERENCES_KEY);
@@ -442,9 +428,7 @@ function App() {
     (salaryCurrency || "").trim().slice(0, 3).toUpperCase() || DEFAULT_CURRENCY;
   const parsedHourlyRate = parseFloat(hourlyRate) || 0;
   const parsedBaseSalary = parseFloat(baseSalary) || 0;
-  const targetHours = Number.isFinite(totalTargetHours)
-    ? totalTargetHours
-    : 0;
+  const targetHours = Number.isFinite(totalTargetHours) ? totalTargetHours : 0;
   const expectedMonthlyBase =
     parsedBaseSalary > 0
       ? parsedBaseSalary
@@ -456,13 +440,21 @@ function App() {
       ? parsedBaseSalary / targetHours
       : parsedHourlyRate;
   const cappedHours =
-    targetHours > 0 ? Math.min(parsedLoggedHours, targetHours) : parsedLoggedHours;
+    targetHours > 0
+      ? Math.min(parsedLoggedHours, targetHours)
+      : parsedLoggedHours;
   const meetsMonthlyTarget =
     enableSalary && targetHours > 0
       ? parsedLoggedHours >= targetHours - 0.01
       : false;
+  const meetGoldenBonusTarget =
+    enableSalary && targetHours > 0
+      ? parsedLoggedHours >= targetHours + 0.12 * targetHours
+      : false;
   const overtimeHours =
-    targetHours > 0 ? Math.max(parsedLoggedHours - targetHours, 0) : 0;
+    targetHours > 0 ? Math.max(parsedLoggedHours - parseInt(totalTargetHours), 0) : 0;
+    console.log("overtimeHours", overtimeHours);
+    console.log("totalTargetHours", totalTargetHours);
   const basePay = (() => {
     if (!enableSalary) return 0;
     if (targetHours <= 0) {
@@ -502,7 +494,7 @@ function App() {
   const clientBonusActive =
     enableSalary &&
     enableClientBonus &&
-    meetsMonthlyTarget &&
+    // meetsMonthlyTarget &&
     expectedMonthlyBase > 0;
   const performanceBonusActive =
     enableSalary &&
@@ -519,7 +511,7 @@ function App() {
   const goldenBonusActive =
     enableSalary &&
     enableGoldenBonus &&
-    meetsMonthlyTarget &&
+    meetGoldenBonusTarget &&
     expectedMonthlyBase > 0;
   const attendanceBonusAmount = attendanceBonusActive
     ? expectedMonthlyBase * 0.05
@@ -527,18 +519,14 @@ function App() {
   const timeManagementBonusAmount = timeManagementBonusActive
     ? expectedMonthlyBase * 0.03
     : 0;
-  const clientBonusAmount = clientBonusActive
-    ? expectedMonthlyBase * 0.03
-    : 0;
+  const clientBonusAmount = clientBonusActive ? expectedMonthlyBase * 0.03 : 0;
   const performanceBonusAmount = performanceBonusActive
     ? expectedMonthlyBase * 0.08
     : 0;
   const overtimeBonusAmount = overtimeBonusActive
     ? effectiveHourlyRate * 2 * overtimeHours
     : 0;
-  const goldenBonusAmount = goldenBonusActive
-    ? expectedMonthlyBase * 0.35
-    : 0;
+  const goldenBonusAmount = goldenBonusActive ? expectedMonthlyBase * 0.35 : 0;
   const bonusSubtotal =
     attendanceBonusAmount +
     timeManagementBonusAmount +
@@ -760,6 +748,10 @@ function App() {
     };
   }, [isAuthenticated, token, tokenType, companyId, accountId]);
 
+  useEffect(() => {
+    setHourlyRate(effectiveHourlyRate);
+  }, [effectiveHourlyRate]);
+
   if (!token) {
     return (
       <div className="relative min-h-screen overflow-hidden bg-slate-950 text-slate-100">
@@ -842,15 +834,14 @@ function App() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.35),transparent_65%)] opacity-80" />
           <div className="relative z-10 flex flex-col gap-10">
             <div className="rounded-3xl border border-white/15 bg-white/15 p-6 backdrop-blur-xl sm:p-8">
-              <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
-              <div className="flex items-center justify-start gap-4">
-                <p className="text-4xl font-semibold sm:text-5xl">
-                  {showSalary ? formattedSalary : "••••••"}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => setShowSalary((prev) => !prev)}
-                    
+              <div className="flex flex-col gap-6 ">
+                <div className="flex items-center justify-start gap-4">
+                  <p className="text-4xl font-semibold sm:text-5xl">
+                    {showSalary ? formattedSalary : "••••••"}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setShowSalary((prev) => !prev)}
                   >
                     {showSalary ? (
                       // eye-off / hidden icon
@@ -905,107 +896,107 @@ function App() {
                         />
                       </svg>
                     )}
-                </button>
-              </div>
-              {showSalary && enableSalary ? (
-                <dl className="mt-4 grid w-full gap-2 text-xs text-white/80 sm:text-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <dt className="uppercase tracking-[0.25em] text-white/70">
-                      {basePayLabel}
-                    </dt>
-                    <dd className="font-semibold text-white">
-                      {formattedBasePay}
-                    </dd>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <dt className="uppercase tracking-[0.25em] text-white/70">
-                      Bonus subtotal
-                    </dt>
-                    <dd className="font-semibold text-white">
-                      {formattedBonusSubtotalFull}
-                    </dd>
-                  </div>
-                  <div className="grid gap-1 text-white/70 sm:grid-cols-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Attendance 5%</span>
-                      <span
-                        className={
-                          attendanceBonusActive
-                            ? "font-medium text-emerald-100"
-                            : "font-medium text-white/40"
-                        }
-                      >
-                        {formattedAttendanceBonusFull}
-                      </span>
+                  </button>
+                </div>
+                {showSalary && enableSalary ? (
+                  <dl className="mt-4 grid w-full gap-2 text-xs text-white/80 sm:text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <dt className="uppercase tracking-[0.25em] text-white/70">
+                        {basePayLabel}
+                      </dt>
+                      <dd className="font-semibold text-white">
+                        {formattedBasePay}
+                      </dd>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Time management 3%</span>
-                      <span
-                        className={
-                          timeManagementBonusActive
-                            ? "font-medium text-emerald-100"
-                            : "font-medium text-white/40"
-                        }
-                      >
-                        {formattedTimeManagementBonusFull}
-                      </span>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <dt className="uppercase tracking-[0.25em] text-white/70">
+                        Bonus subtotal
+                      </dt>
+                      <dd className="font-semibold text-white">
+                        {formattedBonusSubtotalFull}
+                      </dd>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Client 3%</span>
-                      <span
-                        className={
-                          clientBonusActive
-                            ? "font-medium text-emerald-100"
-                            : "font-medium text-white/40"
-                        }
-                      >
-                        {formattedClientBonusFull}
-                      </span>
+                    <div className="grid gap-1 text-white/70 sm:grid-cols-2 gap-x-12">
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Attendance 5%</span>
+                        <span
+                          className={
+                            attendanceBonusActive
+                              ? "font-medium text-emerald-100"
+                              : "font-medium text-white/40"
+                          }
+                        >
+                          {formattedAttendanceBonusFull}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Time management 3%</span>
+                        <span
+                          className={
+                            timeManagementBonusActive
+                              ? "font-medium text-emerald-100"
+                              : "font-medium text-white/40"
+                          }
+                        >
+                          {formattedTimeManagementBonusFull}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Client 3%</span>
+                        <span
+                          className={
+                            clientBonusActive
+                              ? "font-medium text-emerald-100"
+                              : "font-medium text-white/40"
+                          }
+                        >
+                          {formattedClientBonusFull}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Performance 8%</span>
+                        <span
+                          className={
+                            performanceBonusActive
+                              ? "font-medium text-emerald-100"
+                              : "font-medium text-white/40"
+                          }
+                        >
+                          {formattedPerformanceBonusFull}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Overtime 2× hourly</span>
+                        <span
+                          className={
+                            overtimeBonusActive
+                              ? "font-medium text-emerald-100"
+                              : "font-medium text-white/40"
+                          }
+                        >
+                          {formattedOvertimeBonusFull}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span>Golden 35%</span>
+                        <span
+                          className={
+                            goldenBonusActive
+                              ? "font-medium text-emerald-100"
+                              : "font-medium text-white/40"
+                          }
+                        >
+                          {formattedGoldenBonusFull}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Performance 8%</span>
-                      <span
-                        className={
-                          performanceBonusActive
-                            ? "font-medium text-emerald-100"
-                            : "font-medium text-white/40"
-                        }
-                      >
-                        {formattedPerformanceBonusFull}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Overtime 2× hourly</span>
-                      <span
-                        className={
-                          overtimeBonusActive
-                            ? "font-medium text-emerald-100"
-                            : "font-medium text-white/40"
-                        }
-                      >
-                        {formattedOvertimeBonusFull}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>Golden 35%</span>
-                      <span
-                        className={
-                          goldenBonusActive
-                            ? "font-medium text-emerald-100"
-                            : "font-medium text-white/40"
-                        }
-                      >
-                        {formattedGoldenBonusFull}
-                      </span>
-                    </div>
-                  </div>
-                </dl>
-              ) : null}
-              <div className="flex flex-col items-start gap-3 sm:items-end">
-                <span className="text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
-                  Last sync · {lastSyncLabel}
-                </span>
-              </div>
+                  </dl>
+                ) : null}
+                <div className="flex flex-col items-start gap-3 sm:items-end">
+                  <span className="text-xs font-semibold uppercase tracking-[0.3em] text-white/70">
+                    Last sync · {lastSyncLabel}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -1018,23 +1009,55 @@ function App() {
             } space-y-8`}
           >
             <div className="grid gap-4 lg:grid-cols-3">
-              <div className={"rounded-3xl bg-slate-900/80 p-6 shadow-[0_24px_80px_-40px_rgba(99,102,241,0.7)] ring-1 ring-white/10 backdrop-blur sm:p-8"}>
-                <p className={`text-xs font-semibold uppercase tracking-[0.35em] text-slate-400 ${ hourDelta >= 0 ? "text-emerald-300 mr-2" : "text-rose-300 mr-2"}`}>
+              <div
+                className={
+                  "rounded-3xl bg-slate-900/80 p-6 shadow-[0_24px_80px_-40px_rgba(99,102,241,0.7)] ring-1 ring-white/10 backdrop-blur sm:p-8"
+                }
+              >
+                <p
+                  className={`text-xs font-semibold uppercase tracking-[0.35em] text-slate-400 ${
+                    hourDelta >= 0
+                      ? "text-emerald-300 mr-2"
+                      : "text-rose-300 mr-2"
+                  }`}
+                >
                   {hoursStatusLabel}
                 </p>
-                <p className={`mt-4 text-3xl font-semibold sm:text-4xl ${ hourDelta >= 0 ? "text-emerald-300 mr-2" : "text-rose-300 mr-2"}`}>
+                <p
+                  className={`mt-4 text-3xl font-semibold sm:text-4xl ${
+                    hourDelta >= 0
+                      ? "text-emerald-300 mr-2"
+                      : "text-rose-300 mr-2"
+                  }`}
+                >
                   <span
                     className={
-                      hourDelta >= 0 ? "text-emerald-300 mr-2" : "text-rose-300 mr-2"
+                      hourDelta >= 0
+                        ? "text-emerald-300 mr-2"
+                        : "text-rose-300 mr-2"
                     }
                     aria-hidden
                   >
                     {hourDelta >= 0 ? "+" : "-"}
                   </span>
                   {formatNumber(hoursStatusValue)}{" "}
-                  <span className={`text-lg text-slate-400 ${ hourDelta >= 0 ? "text-emerald-300 mr-2" : "text-rose-300 mr-2"}`}>hours</span>
+                  <span
+                    className={`text-lg text-slate-400 ${
+                      hourDelta >= 0
+                        ? "text-emerald-300 mr-2"
+                        : "text-rose-300 mr-2"
+                    }`}
+                  >
+                    hours
+                  </span>
                 </p>
-                <p className={`mt-3 text-sm text-slate-300 ${ hourDelta >= 0 ? "text-emerald-300 mr-2" : "text-rose-300 mr-2"}`}>
+                <p
+                  className={`mt-3 text-sm text-slate-300 ${
+                    hourDelta >= 0
+                      ? "text-emerald-300 mr-2"
+                      : "text-rose-300 mr-2"
+                  }`}
+                >
                   You are {hourDelta >= 0 ? "ahead of" : "behind"} the expected
                   pace of {formattedExpectedHours} hours.
                 </p>
@@ -1235,7 +1258,9 @@ function App() {
                         type="checkbox"
                         className="h-4 w-4 rounded border-white/30 bg-slate-900 text-indigo-500 focus:ring-indigo-400"
                         checked={enableSalary}
-                        onChange={(event) => setEnableSalary(event.target.checked)}
+                        onChange={(event) =>
+                          setEnableSalary(event.target.checked)
+                        }
                       />
                       <span className="flex-1">Enable salary calculations</span>
                     </label>
@@ -1249,7 +1274,9 @@ function App() {
                           setEnableAttendanceBonus(event.target.checked)
                         }
                       />
-                      <span className="flex-1">Enable attendance bonus (5%)</span>
+                      <span className="flex-1">
+                        Enable attendance bonus (5%)
+                      </span>
                     </label>
                     <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 transition hover:border-indigo-400/40">
                       <input
@@ -1261,7 +1288,9 @@ function App() {
                           setEnableTimeManagementBonus(event.target.checked)
                         }
                       />
-                      <span className="flex-1">Enable time management bonus (3%)</span>
+                      <span className="flex-1">
+                        Enable time management bonus (3%)
+                      </span>
                     </label>
                     <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 transition hover:border-indigo-400/40">
                       <input
@@ -1361,7 +1390,9 @@ function App() {
                     <p className="mt-3 text-3xl font-semibold text-white">
                       <span
                         className={
-                          hourDelta >= 0 ? "text-emerald-300 mr-2" : "text-rose-300 mr-2"
+                          hourDelta >= 0
+                            ? "text-emerald-300 mr-2"
+                            : "text-rose-300 mr-2"
                         }
                         aria-hidden
                       >
@@ -1618,8 +1649,6 @@ function App() {
             </div>
           </section>
         </main>
-
-
 
         <nav className="fixed bottom-6 left-1/2 z-30 w-[min(420px,calc(100%-32px))] -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-3xl bg-slate-900/90 p-2 shadow-[0_24px_60px_-30px_rgba(15,23,42,0.8)] backdrop-blur">

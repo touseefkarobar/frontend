@@ -600,12 +600,32 @@ function App() {
   const hoursStatusValue = Math.abs(hourDelta);
   const formattedLoggedHours = formatNumber(parsedLoggedHours);
   const formattedExpectedHours = formatNumber(expectedHoursByToday);
+  const todayDate = dayjs();
+  const todayKey = todayDate.format("YYYY-MM-DD");
+  const currentDateLabel = todayDate.format("ddd, DD MMM");
+  const isTodayWeekend = weekendDays.includes(todayDate.day());
+  const isTodayHoliday = holidays.includes(todayKey);
+  const isTodayWorkingDay = !isTodayWeekend && !isTodayHoliday;
+  const expectedHoursBeforeToday = Math.max(
+    isTodayWorkingDay
+      ? expectedHoursByToday - dailyTargetHours
+      : expectedHoursByToday,
+    0,
+  );
+  const todayProgressHours = Math.max(
+    parsedLoggedHours - expectedHoursBeforeToday,
+    0,
+  );
+  const todayRequirement = isTodayWorkingDay ? dailyTargetHours : 0;
+  const todayVariance = todayProgressHours - todayRequirement;
+  const formattedTodayProgress = formatNumber(todayProgressHours);
+  const formattedTodayRequirement = formatNumber(todayRequirement);
+  const formattedTodayVariance = formatNumber(Math.abs(todayVariance));
   const workingDaysRemaining = Math.max(
     totalWorkingDays - workingDaysToDate,
     0
   );
   const hoursToTarget = Math.max(totalTargetHours - parsedLoggedHours, 0);
-  const currentDateLabel = dayjs().format("ddd, DD MMM");
   const lastSyncLabel = teamLoggerLoading
     ? "Syncing…"
     : lastSyncedAt
@@ -1006,7 +1026,68 @@ function App() {
               activeSection === "overview" ? "block" : "hidden md:block"
             } space-y-8`}
           >
-            <div className="grid gap-4 lg:grid-cols-3">
+            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-3xl bg-slate-900/80 p-6 shadow-[0_24px_80px_-40px_rgba(236,72,153,0.65)] ring-1 ring-white/10 backdrop-blur sm:p-8">
+                <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">
+                  Today's pulse
+                </p>
+                <p className="mt-4 text-4xl font-semibold text-white sm:text-5xl">
+                  {formattedTodayProgress}
+                  <span className="ml-1 align-sub text-base text-slate-400">h</span>
+                  {isTodayWorkingDay ? (
+                    <span
+                      className={`ml-3 inline-flex items-center gap-1 align-sub text-sm font-semibold ${
+                        todayVariance >= 0
+                          ? "text-emerald-300"
+                          : "text-rose-300"
+                      }`}
+                    >
+                      {todayVariance >= 0 ? (
+                        <svg
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="h-4 w-4"
+                          aria-hidden
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-9V6a1 1 0 10-2 0v3H6a1 1 0 100 2h3v3a1 1 0 102 0v-3h3a1 1 0 100-2h-3z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      ) : (
+                        <svg
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="h-4 w-4"
+                          aria-hidden
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100 2h6a1 1 0 100-2H7z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      )}
+                      <span aria-hidden>{todayVariance >= 0 ? "+" : "-"}</span>
+                      {formattedTodayVariance}
+                      <span className="text-xs font-normal text-slate-300">h</span>
+                    </span>
+                  ) : (
+                    <span className="ml-3 align-sub text-xs font-medium text-slate-400">
+                      Rest day
+                    </span>
+                  )}
+                </p>
+                <p className="mt-3 text-sm text-slate-300">
+                  {isTodayWorkingDay
+                    ? `Target for today: ${formattedTodayRequirement} h`
+                    : "Today is not a scheduled working day."}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  Snapshot for {currentDateLabel}.
+                </p>
+              </div>
               <div
                 className={
                   "rounded-3xl bg-slate-900/80 p-6 shadow-[0_24px_80px_-40px_rgba(99,102,241,0.7)] ring-1 ring-white/10 backdrop-blur sm:p-8"

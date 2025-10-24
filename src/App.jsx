@@ -63,7 +63,14 @@ const SECTION_TABS = [
   },
 ];
 
-const StatTile = ({ label, value, accent }) => (
+const LoadingPlaceholder = ({ className }) => (
+  <span
+    aria-hidden="true"
+    className={`block animate-pulse rounded-full bg-slate-700/60 ${className}`}
+  />
+);
+
+const StatTile = ({ label, value, accent, loading = false }) => (
   <div className="rounded-3xl bg-slate-900/60 p-5 shadow-[0_12px_40px_-20px_rgba(59,130,246,0.6)] ring-1 ring-white/10 backdrop-blur">
     <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
       {label}
@@ -71,7 +78,14 @@ const StatTile = ({ label, value, accent }) => (
     <p
       className={`mt-3 text-2xl font-semibold tracking-tight sm:text-3xl ${accent}`}
     >
-      {value}
+      {loading ? (
+        <>
+          <LoadingPlaceholder className="h-7 w-28" />
+          <span className="sr-only">Loading {label}</span>
+        </>
+      ) : (
+        value
+      )}
     </p>
   </div>
 );
@@ -1582,19 +1596,36 @@ function App() {
                         Tracked duration
                       </p>
                       <p className="mt-3 text-3xl font-semibold text-white">
-                        {formatDuration(
-                          teamLoggerTotals.totalWorkedMilliseconds
+                        {teamLoggerLoading ? (
+                          <>
+                            <LoadingPlaceholder className="h-9 w-44" />
+                            <span className="sr-only">Syncing tracked duration</span>
+                          </>
+                        ) : (
+                          formatDuration(
+                            teamLoggerTotals.totalWorkedMilliseconds
+                          )
                         )}
                       </p>
                       <p className="mt-2 text-sm text-slate-300">
-                        ≈ {formatNumber(teamLoggerTotals.totalWorkedHours)}{" "}
-                        hours in total.
+                        {teamLoggerLoading ? (
+                          <LoadingPlaceholder className="h-4 w-48" />
+                        ) : (
+                          <>
+                            ≈ {formatNumber(teamLoggerTotals.totalWorkedHours)}{" "}
+                            hours in total.
+                          </>
+                        )}
                       </p>
                       {teamLoggerStats?.title || teamLoggerStats?.email ? (
                         <p className="mt-3 text-xs text-slate-400">
-                          {[teamLoggerStats?.title, teamLoggerStats?.email]
-                            .filter(Boolean)
-                            .join(" · ")}
+                          {teamLoggerLoading ? (
+                            <LoadingPlaceholder className="h-4 w-56" />
+                          ) : (
+                            [teamLoggerStats?.title, teamLoggerStats?.email]
+                              .filter(Boolean)
+                              .join(" · ")
+                          )}
                         </p>
                       ) : null}
                     </div>
@@ -1608,11 +1639,13 @@ function App() {
                               teamLoggerStats.onComputerHours
                             )}
                             accent="text-indigo-200"
+                            loading={teamLoggerLoading}
                           />
                           <StatTile
                             label="Break hours"
                             value={formatHoursValue(teamLoggerStats.breakHours)}
                             accent="text-rose-200"
+                            loading={teamLoggerLoading}
                           />
                           <StatTile
                             label="Meeting hours"
@@ -1620,16 +1653,19 @@ function App() {
                               teamLoggerStats.meetingHours
                             )}
                             accent="text-sky-200"
+                            loading={teamLoggerLoading}
                           />
                           <StatTile
                             label="Idle hours"
                             value={formatHoursValue(teamLoggerStats.idleHours)}
                             accent="text-amber-200"
+                            loading={teamLoggerLoading}
                           />
                           <StatTile
                             label="Span hours"
                             value={formatHoursValue(teamLoggerStats.spanHours)}
                             accent="text-emerald-200"
+                            loading={teamLoggerLoading}
                           />
                           <StatTile
                             label="Active minutes ratio"
@@ -1637,6 +1673,7 @@ function App() {
                               teamLoggerStats.activeMinutesRatio
                             )}
                             accent="text-indigo-200"
+                            loading={teamLoggerLoading}
                           />
                         </div>
 
@@ -1647,6 +1684,7 @@ function App() {
                               teamLoggerStats.activeSecondsRatio
                             )}
                             accent="text-purple-200"
+                            loading={teamLoggerLoading}
                           />
                           <StatTile
                             label="Active time"
@@ -1654,6 +1692,7 @@ function App() {
                               teamLoggerStats.activeSecondsCount
                             )}
                             accent="text-emerald-200"
+                            loading={teamLoggerLoading}
                           />
                           <StatTile
                             label="Inactive time"
@@ -1661,6 +1700,7 @@ function App() {
                               teamLoggerStats.inactiveSecondsCount
                             )}
                             accent="text-rose-200"
+                            loading={teamLoggerLoading}
                           />
                         </div>
 
@@ -1673,33 +1713,53 @@ function App() {
                               <div className="flex justify-between gap-3 text-slate-300">
                                 <dt>Timer status</dt>
                                 <dd className="font-medium text-white">
-                                  {teamLoggerStats.las.tStatus ?? "—"}
+                                  {teamLoggerLoading ? (
+                                    <LoadingPlaceholder className="h-4 w-20" />
+                                  ) : (
+                                    teamLoggerStats.las.tStatus ?? "—"
+                                  )}
                                 </dd>
                               </div>
                               <div className="flex justify-between gap-3 text-slate-300">
                                 <dt>User status</dt>
                                 <dd className="font-medium text-white">
-                                  {teamLoggerStats.las.uStatus ?? "—"}
+                                  {teamLoggerLoading ? (
+                                    <LoadingPlaceholder className="h-4 w-24" />
+                                  ) : (
+                                    teamLoggerStats.las.uStatus ?? "—"
+                                  )}
                                 </dd>
                               </div>
                               <div className="flex justify-between gap-3 text-slate-300">
                                 <dt>Idle time</dt>
                                 <dd className="font-medium text-white">
-                                  {formatSecondsValue(
-                                    teamLoggerStats.las.idleSecs
+                                  {teamLoggerLoading ? (
+                                    <LoadingPlaceholder className="h-4 w-24" />
+                                  ) : (
+                                    formatSecondsValue(
+                                      teamLoggerStats.las.idleSecs
+                                    )
                                   )}
                                 </dd>
                               </div>
                               <div className="flex justify-between gap-3 text-slate-300">
                                 <dt>App version</dt>
                                 <dd className="font-medium text-white">
-                                  {teamLoggerStats.las.cVersion ?? "—"}
+                                  {teamLoggerLoading ? (
+                                    <LoadingPlaceholder className="h-4 w-20" />
+                                  ) : (
+                                    teamLoggerStats.las.cVersion ?? "—"
+                                  )}
                                 </dd>
                               </div>
                               <div className="flex justify-between gap-3 text-slate-300">
                                 <dt>Last sync</dt>
                                 <dd className="font-medium text-white">
-                                  {formatTimestamp(teamLoggerStats.las.ts)}
+                                  {teamLoggerLoading ? (
+                                    <LoadingPlaceholder className="h-4 w-28" />
+                                  ) : (
+                                    formatTimestamp(teamLoggerStats.las.ts)
+                                  )}
                                 </dd>
                               </div>
                             </dl>

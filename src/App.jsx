@@ -453,8 +453,6 @@ function App() {
       : false;
   const overtimeHours =
     targetHours > 0 ? Math.max(parsedLoggedHours - parseInt(totalTargetHours), 0) : 0;
-    console.log("overtimeHours", overtimeHours);
-    console.log("totalTargetHours", totalTargetHours);
   const basePay = (() => {
     if (!enableSalary) return 0;
     if (targetHours <= 0) {

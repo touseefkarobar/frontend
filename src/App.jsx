@@ -200,6 +200,28 @@ function App() {
   const [loggedHours, setLoggedHours] = useState("");
   const [hourlyRate, setHourlyRate] = useState(0);
 
+  //   const formatHoursAsTime = (decimalHours) => {
+  //     console.log('decimalHours', decimalHours);
+  //   if (!Number.isFinite(decimalHours)) return "00:00";
+  //   const totalMinutes = Math.round(decimalHours * 60);
+  //   const hours = Math.floor(totalMinutes / 60);
+  //   const minutes = totalMinutes % 60;
+  //   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  // };
+
+const formatHoursAsTime = (decimalHours) => {
+  if (!Number.isFinite(decimalHours)) return "00:00:00";
+
+  const totalSeconds = Math.round(decimalHours * 3600);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return `${hours.toString().padStart(2, '0')}:${minutes
+    .toString()
+    .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+};  
+
   const [baseSalary, setBaseSalary] = useState(() => {
     if (typeof window !== "undefined") {
       const stored = window.localStorage.getItem(SALARY_PREFERENCES_KEY);
@@ -632,7 +654,7 @@ function App() {
     : 0;
   const todayRequirement = isTodayWorkingDay ? dailyTargetHours : 0;
   const todayVariance = sanitizedTodayProgressHours - todayRequirement;
-  const formattedTodayProgress = formatNumber(sanitizedTodayProgressHours);
+  const formattedTodayProgress = formatHoursAsTime(sanitizedTodayProgressHours);
   const formattedTodayRequirement = formatNumber(todayRequirement);
   const formattedTodayVariance = formatNumber(Math.abs(todayVariance));
   const workingDaysRemaining = Math.max(
@@ -657,6 +679,7 @@ function App() {
     Number.isFinite(value) && value > 0
       ? dayjs(value).format("DD MMM YYYY HH:mm")
       : "—";
+
 
   const handleToggleWeekend = (dayIndex) => {
     setWeekendDays((prev) =>
@@ -1096,7 +1119,6 @@ function App() {
                   ) : (
                     <>
                       {formattedTodayProgress}
-                      <span className="ml-1 align-sub text-base text-slate-400">h</span>
                       {isTodayWorkingDay ? (
                         <span
                           className={`ml-3 inline-flex items-center gap-1 align-sub text-sm font-semibold ${
@@ -1202,7 +1224,7 @@ function App() {
                       >
                         {hourDelta >= 0 ? "+" : "-"}
                       </span>
-                      {formatNumber(hoursStatusValue)}{" "}
+                      {formatHoursAsTime(hoursStatusValue)}{" "}
                       <span
                         className={`text-lg text-slate-400 ${
                           hourDelta >= 0

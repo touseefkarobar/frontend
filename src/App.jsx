@@ -314,6 +314,38 @@ function App() {
     }
     return true;
   });
+  const [enableOvertimeBonus, setEnableOvertimeBonus] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem(SALARY_PREFERENCES_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (typeof parsed?.enableOvertimeBonus === "boolean") {
+            return parsed.enableOvertimeBonus;
+          }
+        } catch {
+          window.localStorage.removeItem(SALARY_PREFERENCES_KEY);
+        }
+      }
+    }
+    return true;
+  });
+  const [enableGoldenBonus, setEnableGoldenBonus] = useState(() => {
+    if (typeof window !== "undefined") {
+      const stored = window.localStorage.getItem(SALARY_PREFERENCES_KEY);
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (typeof parsed?.enableGoldenBonus === "boolean") {
+            return parsed.enableGoldenBonus;
+          }
+        } catch {
+          window.localStorage.removeItem(SALARY_PREFERENCES_KEY);
+        }
+      }
+    }
+    return true;
+  });
   const [showSalary, setShowSalary] = useState(false);
   const [auth, setAuth] = useState(() => {
     if (typeof window !== "undefined") {
@@ -388,6 +420,8 @@ function App() {
         enableTimeManagementBonus,
         enableClientBonus,
         enablePerformanceBonus,
+        enableOvertimeBonus,
+        enableGoldenBonus,
       })
     );
   }, [
@@ -399,6 +433,8 @@ function App() {
     enableTimeManagementBonus,
     enableClientBonus,
     enablePerformanceBonus,
+    enableOvertimeBonus,
+    enableGoldenBonus,
   ]);
 
   const parsedLoggedHours = parseFloat(loggedHours) || 0;
@@ -423,8 +459,10 @@ function App() {
     targetHours > 0 ? Math.min(parsedLoggedHours, targetHours) : parsedLoggedHours;
   const meetsMonthlyTarget =
     enableSalary && targetHours > 0
-      ? Math.abs(parsedLoggedHours - targetHours) < 0.01
+      ? parsedLoggedHours >= targetHours - 0.01
       : false;
+  const overtimeHours =
+    targetHours > 0 ? Math.max(parsedLoggedHours - targetHours, 0) : 0;
   const basePay = (() => {
     if (!enableSalary) return 0;
     if (targetHours <= 0) {
@@ -472,6 +510,17 @@ function App() {
     attendanceBonusActive &&
     timeManagementBonusActive &&
     clientBonusActive;
+  const overtimeBonusActive =
+    enableSalary &&
+    enableOvertimeBonus &&
+    expectedMonthlyBase > 0 &&
+    effectiveHourlyRate > 0 &&
+    overtimeHours > 0;
+  const goldenBonusActive =
+    enableSalary &&
+    enableGoldenBonus &&
+    meetsMonthlyTarget &&
+    expectedMonthlyBase > 0;
   const attendanceBonusAmount = attendanceBonusActive
     ? expectedMonthlyBase * 0.05
     : 0;
@@ -484,11 +533,19 @@ function App() {
   const performanceBonusAmount = performanceBonusActive
     ? expectedMonthlyBase * 0.03
     : 0;
+  const overtimeBonusAmount = overtimeBonusActive
+    ? effectiveHourlyRate * 2 * overtimeHours
+    : 0;
+  const goldenBonusAmount = goldenBonusActive
+    ? expectedMonthlyBase * 0.35
+    : 0;
   const bonusSubtotal =
     attendanceBonusAmount +
     timeManagementBonusAmount +
     clientBonusAmount +
-    performanceBonusAmount;
+    performanceBonusAmount +
+    overtimeBonusAmount +
+    goldenBonusAmount;
   const totalCompensation = enableSalary ? basePay + bonusSubtotal : 0;
   const formattedSalary = formatCurrencyValue(
     totalCompensation,
@@ -512,6 +569,12 @@ function App() {
   const formattedPerformanceBonus = performanceBonusAmount
     ? formatCurrencyValue(performanceBonusAmount, normalizedCurrency)
     : null;
+  const formattedOvertimeBonus = overtimeBonusAmount
+    ? formatCurrencyValue(overtimeBonusAmount, normalizedCurrency)
+    : null;
+  const formattedGoldenBonus = goldenBonusAmount
+    ? formatCurrencyValue(goldenBonusAmount, normalizedCurrency)
+    : null;
   const formattedBonusSubtotal = bonusSubtotal
     ? formatCurrencyValue(bonusSubtotal, normalizedCurrency)
     : null;
@@ -529,6 +592,14 @@ function App() {
   );
   const formattedPerformanceBonusFull = formatCurrencyValue(
     performanceBonusAmount,
+    normalizedCurrency
+  );
+  const formattedOvertimeBonusFull = formatCurrencyValue(
+    overtimeBonusAmount,
+    normalizedCurrency
+  );
+  const formattedGoldenBonusFull = formatCurrencyValue(
+    goldenBonusAmount,
     normalizedCurrency
   );
   const formattedBasePay = formatCurrencyValue(basePay, normalizedCurrency);
@@ -903,6 +974,30 @@ function App() {
                         {formattedPerformanceBonusFull}
                       </span>
                     </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Overtime 2× hourly</span>
+                      <span
+                        className={
+                          overtimeBonusActive
+                            ? "font-medium text-emerald-100"
+                            : "font-medium text-white/40"
+                        }
+                      >
+                        {formattedOvertimeBonusFull}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>Golden 35%</span>
+                      <span
+                        className={
+                          goldenBonusActive
+                            ? "font-medium text-emerald-100"
+                            : "font-medium text-white/40"
+                        }
+                      >
+                        {formattedGoldenBonusFull}
+                      </span>
+                    </div>
                   </div>
                 </dl>
               ) : null}
@@ -1194,9 +1289,36 @@ function App() {
                         Enable performance bonus (3%)
                       </span>
                     </label>
+                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 transition hover:border-indigo-400/40">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-white/30 bg-slate-900 text-indigo-500 focus:ring-indigo-400"
+                        checked={enableOvertimeBonus}
+                        disabled={!enableSalary}
+                        onChange={(event) =>
+                          setEnableOvertimeBonus(event.target.checked)
+                        }
+                      />
+                      <span className="flex-1">
+                        Enable overtime bonus (2× hourly rate per extra hour)
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 transition hover:border-indigo-400/40">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 rounded border-white/30 bg-slate-900 text-indigo-500 focus:ring-indigo-400"
+                        checked={enableGoldenBonus}
+                        disabled={!enableSalary}
+                        onChange={(event) =>
+                          setEnableGoldenBonus(event.target.checked)
+                        }
+                      />
+                      <span className="flex-1">Enable golden bonus (35%)</span>
+                    </label>
                     <p className="text-xs text-slate-500">
                       Bonuses activate automatically when the logged hours match
-                      the monthly target and the relevant toggles are enabled.
+                      or exceed the monthly target and the relevant toggles are
+                      enabled.
                     </p>
                   </fieldset>
                   <p className="mt-4 text-xs text-slate-400">

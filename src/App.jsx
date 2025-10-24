@@ -525,13 +525,13 @@ function App() {
     ? expectedMonthlyBase * 0.05
     : 0;
   const timeManagementBonusAmount = timeManagementBonusActive
-    ? expectedMonthlyBase * 0.05
+    ? expectedMonthlyBase * 0.03
     : 0;
   const clientBonusAmount = clientBonusActive
     ? expectedMonthlyBase * 0.03
     : 0;
   const performanceBonusAmount = performanceBonusActive
-    ? expectedMonthlyBase * 0.03
+    ? expectedMonthlyBase * 0.08
     : 0;
   const overtimeBonusAmount = overtimeBonusActive
     ? effectiveHourlyRate * 2 * overtimeHours
@@ -939,7 +939,7 @@ function App() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <span>Time management 5%</span>
+                      <span>Time management 3%</span>
                       <span
                         className={
                           timeManagementBonusActive
@@ -963,7 +963,7 @@ function App() {
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2">
-                      <span>Performance 3%</span>
+                      <span>Performance 8%</span>
                       <span
                         className={
                           performanceBonusActive
@@ -1081,7 +1081,7 @@ function App() {
               activeSection === "settings" ? "block" : "hidden md:block"
             } space-y-8`}
           >
-            <div className="grid gap-6 lg:grid-cols-[1.15fr,0.85fr]">
+            <div className="grid gap-6 ">
               <div className="space-y-6 rounded-3xl bg-slate-900/70 p-6 ring-1 ring-white/10 backdrop-blur sm:p-8">
                 <div>
                   <h2 className="text-lg font-semibold text-white">
@@ -1261,7 +1261,7 @@ function App() {
                           setEnableTimeManagementBonus(event.target.checked)
                         }
                       />
-                      <span className="flex-1">Enable time management bonus (5%)</span>
+                      <span className="flex-1">Enable time management bonus (3%)</span>
                     </label>
                     <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 transition hover:border-indigo-400/40">
                       <input
@@ -1286,7 +1286,7 @@ function App() {
                         }
                       />
                       <span className="flex-1">
-                        Enable performance bonus (3%)
+                        Enable performance bonus (8%)
                       </span>
                     </label>
                     <label className="flex items-center gap-3 rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-sm text-slate-200 transition hover:border-indigo-400/40">
@@ -1390,7 +1390,7 @@ function App() {
               activeSection === "insights" ? "block" : "hidden md:block"
             } space-y-8`}
           >
-            <div className="grid gap-6 lg:grid-cols-[1.15fr,0.85fr]">
+            <div className="grid gap-6 ">
               <div className="space-y-6 rounded-3xl bg-slate-900/70 p-6 ring-1 ring-white/10 backdrop-blur sm:p-8">
                 <div>
                   <h2 className="text-lg font-semibold text-white">

@@ -623,13 +623,10 @@ function App() {
   const expectedHoursBeforeToday = Math.max(
     isTodayWorkingDay
       ? expectedHoursByToday - dailyTargetHours
-      : expectedHoursByToday,
+      : 0,
     0,
   );
-  const todayProgressHours = Math.max(
-    parsedLoggedHours - expectedHoursBeforeToday,
-    0,
-  );
+  const todayProgressHours = 8
   const todayRequirement = isTodayWorkingDay ? dailyTargetHours : 0;
   const todayVariance = todayProgressHours - todayRequirement;
   const formattedTodayProgress = formatNumber(todayProgressHours);
@@ -1040,63 +1037,75 @@ function App() {
               activeSection === "overview" ? "block" : "hidden md:block"
             } space-y-8`}
           >
-            <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 lg:grid-cols-2 ">
               <div className="rounded-3xl bg-slate-900/80 p-6 shadow-[0_24px_80px_-40px_rgba(236,72,153,0.65)] ring-1 ring-white/10 backdrop-blur sm:p-8">
                 <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">
                   Today's pulse
                 </p>
                 <p className="mt-4 text-4xl font-semibold text-white sm:text-5xl">
-                  {formattedTodayProgress}
-                  <span className="ml-1 align-sub text-base text-slate-400">h</span>
-                  {isTodayWorkingDay ? (
-                    <span
-                      className={`ml-3 inline-flex items-center gap-1 align-sub text-sm font-semibold ${
-                        todayVariance >= 0
-                          ? "text-emerald-300"
-                          : "text-rose-300"
-                      }`}
-                    >
-                      {todayVariance >= 0 ? (
-                        <svg
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          className="h-4 w-4"
-                          aria-hidden
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-9V6a1 1 0 10-2 0v3H6a1 1 0 100 2h3v3a1 1 0 102 0v-3h3a1 1 0 100-2h-3z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      ) : (
-                        <svg
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          className="h-4 w-4"
-                          aria-hidden
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100 2h6a1 1 0 100-2H7z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                      )}
-                      <span aria-hidden>{todayVariance >= 0 ? "+" : "-"}</span>
-                      {formattedTodayVariance}
-                      <span className="text-xs font-normal text-slate-300">h</span>
-                    </span>
+                  {teamLoggerLoading ? (
+                    <>
+                      <LoadingPlaceholder className="h-12 w-16 inline-block" />
+                      <span className="ml-1 align-sub text-base text-slate-400">h</span>
+                    </>
                   ) : (
-                    <span className="ml-3 align-sub text-xs font-medium text-slate-400">
-                      Rest day
-                    </span>
+                    <>
+                      {formattedTodayProgress}
+                      <span className="ml-1 align-sub text-base text-slate-400">h</span>
+                      {isTodayWorkingDay ? (
+                        <span
+                          className={`ml-3 inline-flex items-center gap-1 align-sub text-sm font-semibold ${
+                            todayVariance >= 0
+                              ? "text-emerald-300"
+                              : "text-rose-300"
+                          }`}
+                        >
+                          {todayVariance >= 0 ? (
+                            <svg
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                              className="h-4 w-4"
+                              aria-hidden
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-9V6a1 1 0 10-2 0v3H6a1 1 0 100 2h3v3a1 1 0 102 0v-3h3a1 1 0 100-2h-3z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          ) : (
+                            <svg
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                              className="h-4 w-4"
+                              aria-hidden
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M10 18a8 8 0 100-16 8 8 0 000 16zM7 9a1 1 0 100 2h6a1 1 0 100-2H7z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          )}
+                          {formattedTodayVariance}
+                          <span className="text-xs font-normal text-slate-300">h</span>
+                        </span>
+                      ) : (
+                        <span className="ml-3 align-sub text-xs font-medium text-slate-400">
+                          Rest day
+                        </span>
+                      )}
+                    </>
                   )}
                 </p>
                 <p className="mt-3 text-sm text-slate-300">
-                  {isTodayWorkingDay
-                    ? `Target for today: ${formattedTodayRequirement} h`
-                    : "Today is not a scheduled working day."}
+                  {teamLoggerLoading ? (
+                    <LoadingPlaceholder className="h-4 w-48" />
+                  ) : (
+                    isTodayWorkingDay
+                      ? `Target for today: ${formattedTodayRequirement} h`
+                      : "Today is not a scheduled working day."
+                  )}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   Snapshot for {currentDateLabel}.
@@ -1108,51 +1117,76 @@ function App() {
                 }
               >
                 <p
-                  className={`text-xs font-semibold uppercase tracking-[0.35em] text-slate-400 ${
-                    hourDelta >= 0
-                      ? "text-emerald-300 mr-2"
-                      : "text-rose-300 mr-2"
+                  className={`text-xs font-semibold uppercase tracking-[0.35em] ${
+                    teamLoggerLoading 
+                      ? "text-slate-400"
+                      : hourDelta >= 0
+                      ? "text-emerald-300"
+                      : "text-rose-300"
                   }`}
                 >
-                  {hoursStatusLabel}
+                  {teamLoggerLoading ? (
+                    <LoadingPlaceholder className="h-3 w-24 inline-block" />
+                  ) : (
+                    hoursStatusLabel
+                  )}
                 </p>
                 <p
                   className={`mt-4 text-3xl font-semibold sm:text-4xl ${
-                    hourDelta >= 0
-                      ? "text-emerald-300 mr-2"
-                      : "text-rose-300 mr-2"
+                    teamLoggerLoading
+                      ? "text-white"
+                      : hourDelta >= 0
+                      ? "text-emerald-300"
+                      : "text-rose-300"
                   }`}
                 >
-                  <span
-                    className={
-                      hourDelta >= 0
-                        ? "text-emerald-300 mr-2"
-                        : "text-rose-300 mr-2"
-                    }
-                    aria-hidden
-                  >
-                    {hourDelta >= 0 ? "+" : "-"}
-                  </span>
-                  {formatNumber(hoursStatusValue)}{" "}
-                  <span
-                    className={`text-lg text-slate-400 ${
-                      hourDelta >= 0
-                        ? "text-emerald-300 mr-2"
-                        : "text-rose-300 mr-2"
-                    }`}
-                  >
-                    hours
-                  </span>
+                  {teamLoggerLoading ? (
+                    <>
+                      <LoadingPlaceholder className="h-10 w-32 inline-block" />
+                      <span className="ml-2 text-lg text-slate-400">hours</span>
+                    </>
+                  ) : (
+                    <>
+                      <span
+                        className={
+                          hourDelta >= 0
+                            ? "text-emerald-300 mr-2"
+                            : "text-rose-300 mr-2"
+                        }
+                        aria-hidden
+                      >
+                        {hourDelta >= 0 ? "+" : "-"}
+                      </span>
+                      {formatNumber(hoursStatusValue)}{" "}
+                      <span
+                        className={`text-lg text-slate-400 ${
+                          hourDelta >= 0
+                            ? "text-emerald-300 mr-2"
+                            : "text-rose-300 mr-2"
+                        }`}
+                      >
+                        hours
+                      </span>
+                    </>
+                  )}
                 </p>
                 <p
-                  className={`mt-3 text-sm text-slate-300 ${
-                    hourDelta >= 0
-                      ? "text-emerald-300 mr-2"
-                      : "text-rose-300 mr-2"
+                  className={`mt-3 text-sm ${
+                    teamLoggerLoading
+                      ? "text-slate-300"
+                      : hourDelta >= 0
+                      ? "text-emerald-300"
+                      : "text-rose-300"
                   }`}
                 >
-                  You are {hourDelta >= 0 ? "ahead of" : "behind"} the expected
-                  pace of {formattedExpectedHours} hours.
+                  {teamLoggerLoading ? (
+                    <LoadingPlaceholder className="h-4 w-56" />
+                  ) : (
+                    <>
+                      You are {hourDelta >= 0 ? "ahead of" : "behind"} the expected
+                      pace of {formattedExpectedHours} hours.
+                    </>
+                  )}
                 </p>
               </div>
 
@@ -1161,14 +1195,31 @@ function App() {
                   Logged vs target
                 </p>
                 <p className="mt-4 text-3xl font-semibold text-white sm:text-4xl">
-                  {formattedLoggedHours}{" "}
-                  <span className="text-lg text-slate-400">hours</span>
+                  {teamLoggerLoading ? (
+                    <>
+                      <LoadingPlaceholder className="h-10 w-20 inline-block" />
+                      <span className="ml-2 text-lg text-slate-400">hours</span>
+                    </>
+                  ) : (
+                    <>
+                      {formattedLoggedHours}{" "}
+                      <span className="text-lg text-slate-400">hours</span>
+                    </>
+                  )}
                 </p>
                 <p className="mt-3 text-sm text-slate-300">
-                  Monthly target: {formatNumber(totalTargetHours)} h
+                  {teamLoggerLoading ? (
+                    <LoadingPlaceholder className="h-4 w-40" />
+                  ) : (
+                    `Monthly target: ${formatNumber(totalTargetHours)} h`
+                  )}
                 </p>
                 <p className="mt-1 text-sm text-slate-300">
-                  Expected by today: {formattedExpectedHours} h
+                  {teamLoggerLoading ? (
+                    <LoadingPlaceholder className="h-4 w-44" />
+                  ) : (
+                    `Expected by today: ${formattedExpectedHours} h`
+                  )}
                 </p>
               </div>
 
@@ -1177,16 +1228,37 @@ function App() {
                   Rhythm outlook
                 </p>
                 <p className="mt-4 text-3xl font-semibold text-white sm:text-4xl">
-                  {formatNumber(workingDaysRemaining)}{" "}
-                  <span className="text-lg text-slate-400">days left</span>
+                  {teamLoggerLoading ? (
+                    <>
+                      <LoadingPlaceholder className="h-10 w-16 inline-block" />
+                      <span className="ml-2 text-lg text-slate-400">days left</span>
+                    </>
+                  ) : (
+                    <>
+                      {formatNumber(workingDaysRemaining)}{" "}
+                      <span className="text-lg text-slate-400">days left</span>
+                    </>
+                  )}
                 </p>
                 <p className="mt-3 text-sm text-slate-300">
-                  Remaining hours to target:{" "}
-                  {formatNumber(Math.max(hoursToTarget, 0))} h
+                  {teamLoggerLoading ? (
+                    <LoadingPlaceholder className="h-4 w-52" />
+                  ) : (
+                    <>
+                      Remaining hours to target:{" "}
+                      {formatNumber(Math.max(hoursToTarget, 0))} h
+                    </>
+                  )}
                 </p>
                 <p className="mt-1 text-sm text-slate-400">
-                  Total working days this month:{" "}
-                  {formatNumber(totalWorkingDays)}
+                  {teamLoggerLoading ? (
+                    <LoadingPlaceholder className="h-4 w-48" />
+                  ) : (
+                    <>
+                      Total working days this month:{" "}
+                      {formatNumber(totalWorkingDays)}
+                    </>
+                  )}
                 </p>
               </div>
             </div>
@@ -1474,30 +1546,6 @@ function App() {
                       placeholder="Synced automatically from TeamLogger"
                       className="rounded-2xl border border-white/10 bg-slate-950/60 px-4 py-3 text-lg text-white outline-none transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/40"
                     />
-                  </div>
-
-                  <div className="rounded-2xl bg-slate-950/70 p-5 ring-1 ring-white/5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.35em] text-slate-400">
-                      {hoursStatusLabel}
-                    </p>
-                    <p className="mt-3 text-3xl font-semibold text-white">
-                      <span
-                        className={
-                          hourDelta >= 0
-                            ? "text-emerald-300 mr-2"
-                            : "text-rose-300 mr-2"
-                        }
-                        aria-hidden
-                      >
-                        {hourDelta >= 0 ? "+" : "-"}
-                      </span>
-                      {formatNumber(hoursStatusValue)}{" "}
-                      <span className="text-lg text-slate-400">hours</span>
-                    </p>
-                    <p className="mt-3 text-sm text-slate-300">
-                      You are {hourDelta >= 0 ? "ahead of" : "behind"} the
-                      expected schedule of {formattedExpectedHours} hours.
-                    </p>
                   </div>
 
                   <div className="rounded-2xl bg-indigo-500/10 px-5 py-4 text-sm text-indigo-100">
